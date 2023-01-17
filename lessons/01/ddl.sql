@@ -1,246 +1,445 @@
-/*
-
-Проект базы данных "Кинотека"
-
-*/
-
-drop database if exists kinoteka;
-
-create database kinoteka;
-
--- Полученные награды (фильм, актер, режиссер,..) на церемониях вручения по номинациям
-CREATE TABLE award
+create table award_nomination
 (
- id             bigint NOT NULL,
- award_category integer NOT NULL,           -- категория награды (золотая, серебряная статуэтки оскар, золотая пальмовая ветвь ...)
- ceremony_id    bigint NOT NULL,            -- церемония награждения
- movie_id       bigint NOT NULL,            -- за какой фильм, сериал
- person_id      bigint NULL,                -- актеру, режиссеру, композитору или NULL за фильм
- nomitation_id  bigint NOT NULL,            -- в номинации
-
- CONSTRAINT pk_award PRIMARY KEY ( id ),
- CONSTRAINT fk_award_nomination FOREIGN KEY ( nomitation_id ) REFERENCES award_nomination ( id ),
- CONSTRAINT fk_movie FOREIGN KEY ( movie_id ) REFERENCES movie ( id ),
- CONSTRAINT fk_persin FOREIGN KEY ( person_id ) REFERENCES person ( id ),
- CONSTRAINT fk_award_ceremony FOREIGN KEY ( ceremony_id ) REFERENCES award_ceremony ( id ),
- CONSTRAINT fk_award_category FOREIGN KEY ( award_category ) REFERENCES award_category ( id )
+    id    smallserial
+        primary key,
+    title varchar not null
 );
 
---
-CREATE TABLE award_category
-(
- id            integer NOT NULL,
- title          NOT NULL,
- film_award_id bigint NOT NULL,
- tier          integer NOT NULL,
+comment on table award_nomination is 'Номинации кинопремий';
 
- CONSTRAINT PK_1 PRIMARY KEY ( id ),
- CONSTRAINT FK_19 FOREIGN KEY ( film_award_id ) REFERENCES film_award ( id )
+create table country
+(
+    id    char(2)
+        primary key,
+    title char(128) not null
 );
 
--- Церемонии награждения
-CREATE TABLE award_ceremony
-(
- id                bigint NOT NULL,
- title             char(128) NOT NULL,      -- наименование
- place_id          bigint NOT NULL,         -- место проведения
- award_category_id bigint NOT NULL,         -- категория кинопремии (оскар, канны, ника)
- start_at          date NOT NULL,           -- дата начала
- end_at            date NOT NULL,           -- дата окончания
+comment on table country is 'Каталог стран';
 
- CONSTRAINT pk_award_ceremony PRIMARY KEY ( id ),
- CONSTRAINT pk_film_award FOREIGN KEY ( award_category_id ) REFERENCES film_award ( id ),
- CONSTRAINT pk_place FOREIGN KEY ( place_id ) REFERENCES place ( id )
+comment on column country.id is 'Код страны';
+
+comment on column country.title is 'Наименование';
+
+create table city
+(
+    id         serial
+        primary key,
+    title      varchar(128) not null,
+    country_id char(2)      not null
+        references country
 );
 
--- Учредитель кинопремии
-CREATE TABLE award_founder
-(
- id      integer NOT NULL,
- title   char(128) NOT NULL,                -- наименование
- country char(2) NOT NULL,                  -- страна
+comment on table city is 'Города';
 
- CONSTRAINT pk_award_founder PRIMARY KEY ( id ),
- CONSTRAINT fk_countries FOREIGN KEY ( country ) REFERENCES countries ( id )
+create table genre
+(
+    id    smallserial
+        primary key,
+    title char(128) not null
+        unique
 );
 
--- Номинации кинопремий
-CREATE TABLE award_nomination
-(
- id         bigint NOT NULL,
- title      varchar NOT NULL,               -- наименование
- subject_id integer NOT NULL,               -- ???
+comment on table genre is 'Жанры кинолент';
 
- CONSTRAINT pk_award_nomination PRIMARY KEY ( id ),
- CONSTRAINT fk_award_nomination_subject FOREIGN KEY ( subject_id ) REFERENCES award_nomination_subject ( id )
+create table movie_rars
+(
+    title   varchar(3) not null
+        constraint movie_rars_pk
+            primary key,
+    min_age smallint   not null,
+    comment varchar    not null
 );
 
--- ???
-CREATE TABLE award_nomination_subject
-(
- id          integer NOT NULL,
- title       varchar NOT NULL,
- description text,
+comment on table movie_rars is 'Возрастная классификация';
 
- CONSTRAINT PK_1 PRIMARY KEY ( id )
+create table movie
+(
+    id             serial
+        primary key,
+    title          varchar(128) not null,
+    title_original varchar(128) not null,
+    country        char         not null
+        references country (id),
+    year           smallint     not null,
+    release_date   date,
+    budget         numeric      not null,
+    boxoffice      numeric,
+    rating         smallint     not null,
+    duration       integer      not null,
+    rars           integer
+        references movie_rars (title)
+            on update cascade on delete restrict
 );
 
--- Города
-CREATE TABLE city
-(
- id         bigint NOT NULL,
- title      varchar(128) NOT NULL,
- country_id char(2) NOT NULL,
+comment on table movie is 'Каталог кинолент и сериалов';
 
- CONSTRAINT pk_city PRIMARY KEY ( id ),
- CONSTRAINT fk_country FOREIGN KEY ( country_id ) REFERENCES country ( id )
+create table movie_genre_m2m
+(
+    id       serial
+        primary key,
+    genre_id bigint not null
+        references genre,
+    movie_id bigint not null
+        references movie
 );
 
--- Страны
-CREATE TABLE country
+create table person
 (
- id    char(2) NOT NULL,                        -- код страны
- title char(128) NOT NULL,                      -- наименование
-
- CONSTRAINT pk_country PRIMARY KEY ( id )
+    id         serial
+        primary key,
+    last_name  varchar(128) not null,
+    city_id    integer
+        references city,
+    first_name varchar(128) not null,
+    mid_name   varchar(128),
+    birthday   date,
+    education  varchar
 );
 
--- Кинопремии
-CREATE TABLE film_award
-(
- id          bigint NOT NULL,
- founder     integer NOT NULL,                  -- учредитель кинопремии todo: ссылку на таблицу с организациями
- title       varchar(128) NOT NULL,             -- наименование кинопремии
- found_at    date NOT NULL                      -- дата основания
- ended_at    date NULL                          -- дата ликвидации
- 'description' text NULL,
+comment on table person is 'Актеры, режиссеры,...';
 
- CONSTRAINT pk_film_award PRIMARY KEY ( id ),
- CONSTRAINT fk_award_founder FOREIGN KEY ( founder ) REFERENCES award_founder ( id )
+create table movie_review_m2m
+(
+    id         serial
+        primary key,
+    text       text               not null,
+    created_at date default now() not null,
+    movie_id   integer
+        references movie
+            on delete cascade,
+    person_id  integer
+        references person
+            on delete cascade,
+    unique (movie_id, person_id)
 );
 
--- Жанры кинолент
-CREATE TABLE genre
-(
- id    bigint NOT NULL,
- title char(128) NOT NULL,                      -- наименование жанра
- --age_rating integer NULL,
+comment on table movie_review_m2m is 'Рецензии на фильм';
 
- CONSTRAINT pk_genre PRIMARY KEY ( id )
+create table person_position
+(
+    title varchar
+        primary key
 );
 
--- Каталог кинолент и сериалов
-CREATE TABLE movie
-(
- id           bigint NOT NULL,
- title        varchar(128) NOT NULL,            -- наименование
- tags         bigint,                           -- теги
- release_date date,                             -- дата выхода
- budget       numeric,                          -- бюджет фильма
- box_office   numeric,                          -- кассовый сбор
- rating       smallint,                         -- рейтинг
- feedbacks    bigint,                           -- отзывы
+comment on table person_position is 'Занимаемые должности';
 
- CONSTRAINT pk_movie PRIMARY KEY ( id )
+create table movie_staff_m2m
+(
+    id           serial
+        primary key,
+    character    char,
+    is_lead_role boolean default FALSE,
+    position_id  varchar not null
+        references person_position,
+    person_id    bigint  not null
+        references person,
+    movie_id     bigint  not null
+        references movie
 );
 
--- жанры и относящиеся к ним фильмы
-CREATE TABLE movie_genre_m2m
+create table place
 (
- id       bigint NOT NULL,
- genre_id bigint NOT NULL,
- movie_id bigint NOT NULL,
-
- CONSTRAINT pk_movie_genre_m2m PRIMARY KEY ( id ),
- CONSTRAINT fk_genre FOREIGN KEY ( genre_id ) REFERENCES genre ( id ),
- CONSTRAINT fk_movie FOREIGN KEY ( movie_id ) REFERENCES movie ( id )
+    id       smallserial
+        primary key,
+    title    varchar(128) not null,
+    city_id  integer      not null
+        references city,
+    postcode varchar      not null,
+    street   varchar,
+    build    varchar,
+    office   varchar
 );
 
--- изображения к фильмам (постеры, скриншоты)
-CREATE TABLE movie_pic_m2m
-(
- id          bigint NOT NULL,
- pic_id      bigint NOT NULL,
- movie_id    bigint NOT NULL,
- description text NOT NULL,
+comment on table place is 'Места проведения награждений';
 
- CONSTRAINT pk_movie_pic_m2m PRIMARY KEY ( id ),
- CONSTRAINT fk_picture FOREIGN KEY ( pic_id ) REFERENCES picture ( id ),
- CONSTRAINT fk_movie FOREIGN KEY ( movie_id ) REFERENCES movie ( id )
+create table organization
+(
+    id            smallserial
+        constraint organization_pk
+            primary key,
+    title         varchar not null,
+    title_short   varchar not null,
+    place_id      integer
+        constraint organization_place_id_fk
+            references place,
+    ceo           integer
+        constraint organization_person_id_fk
+            references person,
+    found_at      date,
+    liquidated_at date
 );
 
--- участники съемок
-CREATE TABLE movie_staff_m2m
-(
- id          bigint NOT NULL,
- part        char NULL,                 -- герой, которого сыграл актер !todo: во внешнюю таблицу - может сыграть больше одной роли в фильме
- position_id varchar NOT NULL,          -- должность
- person_id   bigint NOT NULL,
- movie_id    bigint NOT NULL,
+comment on table organization is 'Каталог организаций юридических лиц';
 
- CONSTRAINT pk_movie_staff_m2m PRIMARY KEY ( id ),
- CONSTRAINT fk_movie_staff_m2m_movie FOREIGN KEY ( movie_id ) REFERENCES movie ( id ),
- CONSTRAINT fk_movie_staff_m2m_person FOREIGN KEY ( person_id ) REFERENCES person ( id ),
- CONSTRAINT fk_movie_staff_m2m_person_position FOREIGN KEY ( position_id ) REFERENCES person_position ( title )
+comment on column organization.title is 'Наименование';
+
+comment on column organization.title_short is 'Краткое наименование';
+
+comment on column organization.place_id is 'Главный офис';
+
+comment on column organization.ceo is 'Директор';
+
+comment on column organization.found_at is 'Дата основания';
+
+create table film_award
+(
+    id          smallserial
+        primary key,
+    founder     integer      not null
+        references organization,
+    title       varchar(128) not null,
+    found_at    date         not null,
+    ended_at    date,
+    description text
 );
 
--- люди (актеры, режжисеры, ...)
-CREATE TABLE person
-(
- id         bigint NOT NULL,
- last_name  varchar(128) NOT NULL,
- city_id    bigint,
- first_name varchar(128) NOT NULL,
- mid_name   varchar(128),
- birthday   date,
- education  varchar,
+comment on table film_award is 'Учредитель кинопремии';
 
- CONSTRAINT pk_person PRIMARY KEY ( id ),
- CONSTRAINT fk_city FOREIGN KEY ( city_id ) REFERENCES city ( id )
+create table award_category
+(
+    id            smallserial
+        primary key,
+    title         char(128) not null,
+    film_award_id bigint    not null
+        references film_award,
+    tier          integer   not null
 );
 
--- изображения, относящиеся к актерам, режиссерам (фото, постеры)
-CREATE TABLE person_pic_m2m
-(
- id         bigint NOT NULL,
- person_id  bigint NOT NULL,
- picture_id bigint NOT NULL,
+comment on table award_category is 'Категория награды, относящаяся к кинопремии';
 
- CONSTRAINT pk_person_pic_m2m PRIMARY KEY ( id ),
- CONSTRAINT fk_person FOREIGN KEY ( person_id ) REFERENCES person ( id ),
- CONSTRAINT fk_picture FOREIGN KEY ( picture_id ) REFERENCES picture ( id )
+create table award_ceremony
+(
+    id                integer
+        primary key,
+    title             char(128) not null,
+    place_id          smallint  not null
+        references place,
+    award_category_id integer   not null
+        references film_award,
+    start_at          date      not null,
+    end_at            date      not null
 );
 
--- должности, роли (режиссер, актер, продюсер, ...)
-CREATE TABLE person_position
-(
- title varchar NOT NULL,
+comment on table award_ceremony is 'Церемонии награждения';
 
- CONSTRAINT pk_person_position PRIMARY KEY ( title )
+create table award
+(
+    id             serial
+        primary key,
+    award_category integer not null
+        references award_category,
+    ceremony_id    integer not null
+        references award_ceremony,
+    movie_id       integer not null
+        references movie,
+    person_id      integer
+        references person,
+    nomitation_id  integer not null
+        references award_nomination,
+    constraint award_unique_constraint
+        unique (ceremony_id, movie_id, nomitation_id)
 );
 
--- изображения
-CREATE TABLE picture
-(
- id     bigint NOT NULL,
- 'path'   varchar NOT NULL,
- width  integer NOT NULL,
- height integer NOT NULL,
+comment on table award is 'Полученные награды';
 
- CONSTRAINT pk_picture PRIMARY KEY ( id )
+create table poster
+(
+    id        serial
+        primary key,
+    file_path varchar,
+    width     integer not null,
+    height    integer not null
 );
 
--- места проведения награждений
-CREATE TABLE place
-(
- id       bigint NOT NULL,
- title    varchar(128) NOT NULL,
- city_id  bigint NOT NULL,
- postcode varchar NOT NULL,
- street   varchar,
- build    varchar,
- office   varchar,
+comment on table poster is 'Изображения';
 
- CONSTRAINT pk_place PRIMARY KEY ( id ),
- CONSTRAINT fk_city FOREIGN KEY ( city_id ) REFERENCES city ( id )
+create table movie_poster_m2m
+(
+    id          serial
+        primary key,
+    pic_id      integer not null
+        references poster,
+    movie_id    integer not null
+        references movie,
+    description text    not null
 );
+
+create table person_poster_m2m
+(
+    person_id integer not null
+        references person,
+    poster_id integer not null
+        constraint person_poster_m2m_id_fk
+            references poster,
+    id        serial
+        primary key
+);
+
+
+create table tag
+(
+    title varchar
+        primary key
+);
+
+create table tag_movie_m2m
+(
+    movie_id  integer
+        constraint tag_movie_m2m_movie_id_fk
+            references movie
+            on update cascade on delete cascade,
+    tag_title integer
+        constraint tag_movie_m2m_tag_title_fk
+            references tag
+            on update cascade on delete cascade,
+    constraint tag_movie_m2m_pk
+        unique (movie_id, tag_title)
+);
+
+comment on table tag_movie_m2m is 'Теги для фильмов';
+
+create table "user"
+(
+    username   varchar(64)        not null
+        constraint user_pk
+            primary key,
+    email      varchar(128)       not null
+        constraint user_email
+            unique,
+    fio        varchar(128),
+    created_at date default now() not null,
+    deleted_at date,
+    password   varchar            not null,
+    birthday   date               not null,
+    constraint user_birthday_check
+        check (birthday < now()),
+    constraint user_check_created_less_deleted
+        check ("user".created_at <= "user".deleted_at)
+);
+
+comment on table "user" is 'Пользователи кинотеки';
+
+comment on column "user".username is 'Имя пользователя';
+
+create table feedback
+(
+    id         serial
+        constraint feedback_pk
+            primary key,
+    text       text               not null,
+    movie_id   integer
+        constraint feedback_movie_id_fk
+            references movie
+            on delete cascade,
+    "user"     varchar
+        constraint feedback_user_username_fk
+            references "user"
+            on update cascade on delete cascade,
+    created_at date default now() not null
+);
+
+comment on table feedback is 'Отзывы';
+
+create table movie_rating_m2m
+(
+    id       bigserial
+        constraint movie_rating_m2m_pk
+            primary key,
+    rating   smallint not null,
+    movie_id integer
+        constraint movie_rating_m2m_movie_id_fk
+            references movie
+            on delete cascade,
+    user_id  integer
+        constraint movie_rating_m2m_user_id_fk
+            references "user"
+            on delete cascade,
+    constraint movie_rating_check_range_1_5
+        check (rating > 0 and rating < 6)
+);
+
+comment on table movie_rating_m2m is 'Пользовательский рэйтинг фильмов';
+
+create table cinema_online
+(
+    id    serial
+        constraint online_cinema_pk
+            primary key,
+    title varchar(128) not null,
+    url   varchar(256) not null
+);
+
+comment on table cinema_online is 'Онлайн кинотеатры';
+
+create table cinema_online_movie_presence_m2m
+(
+    id          bigserial
+        constraint movie_cinema_presence_m2m_pk
+            primary key,
+    movie_id    integer
+        constraint movie_cinema_presence_m2m_movie_id_fk
+            references movie
+            on update cascade on delete cascade,
+    cinema_id   integer
+        constraint movie_cinema_presence_m2m_online_cinema_id_fk
+            references cinema_online
+            on update cascade on delete cascade,
+    price       numeric not null,
+    rating      integer,
+    view_count  integer,
+    last_update date,
+    constraint movie_cinema_rating_check
+        check (rating > 0 and rating < 6)
+);
+
+comment on table cinema_online_movie_presence_m2m is 'Наличие фильмов в онлайн-кинотеатрах';
+
+comment on column cinema_online_movie_presence_m2m.view_count is 'Количество просмотров';
+
+create table user_movie_orders_m2m
+(
+    id               bigserial
+        constraint user_movie_orders_m2m_pk
+            primary key,
+    cinema_order_id  uuid               not null,
+    movie_id         integer
+        constraint user_movie_orders_m2m_movie_id_fk
+            references movie
+            on update cascade on delete cascade,
+    user_id          integer
+        constraint user_movie_orders_m2m_user_username_fk
+            references "user"
+            on update cascade on delete cascade,
+    online_cinema_id integer
+        constraint user_movie_orders_m2m_cinema_online_id_fk
+            references cinema_online
+            on delete restrict,
+    price            numeric            not null,
+    date             date default now() not null
+);
+
+comment on table user_movie_orders_m2m is 'Заказы просмотров фильмов пользователями фильмов в онлайн-кинотеатрах';
+
+comment on column user_movie_orders_m2m.cinema_order_id is 'Идентификационный номер заказа в кинотеатре';
+
+create table user_movie_comments_m2m
+(
+    id          bigserial
+        constraint user_movie_comments_m2m_pk
+            primary key,
+    user_id     integer
+        constraint user_movie_comments_m2m_user_username_fk
+            references "user"
+            on delete cascade,
+    movie_id    integer
+        constraint user_movie_comments_m2m_movie_id_fk
+            references movie
+            on delete cascade,
+    comment     varchar(1024)      not null,
+    create_date date default now() not null,
+    parent_id   integer
+        constraint user_movie_comments_m2m_user_movie_comments_m2m_id_fk
+            references user_movie_comments_m2m
+);
+
+comment on table user_movie_comments_m2m is 'Комментарии пользователей к фильму';
