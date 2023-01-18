@@ -311,6 +311,7 @@ create table "user"
     deleted_at date,
     password   varchar            not null,
     birthday   date               not null,
+    last_logon date,
     constraint user_birthday_check
         check (birthday < now()),
     constraint user_check_created_less_deleted
