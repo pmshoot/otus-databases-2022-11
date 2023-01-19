@@ -18,6 +18,6 @@
 
 * [ДЗ_2. Индексы](lessons/02)
 
-* [ДЗ_3. Установка СУБД PostgreSQL](lessons/06)
+* [ДЗ_3. Установка СУБД PostgreSQL](lessons/03)
 
 
