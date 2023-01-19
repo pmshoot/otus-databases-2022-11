@@ -68,7 +68,9 @@ create table movie
     duration       integer      not null,
     rars           integer
         references movie_rars (title)
-            on update cascade on delete restrict
+            on update cascade on delete restrict,
+    constraint movie_rating_check
+        check (rating > 0 and rating < 6)
 );
 
 comment on table movie is 'Каталог кинолент и сериалов';
@@ -98,22 +100,6 @@ create table person
 
 comment on table person is 'Актеры, режиссеры,...';
 
-create table movie_review_m2m
-(
-    id         serial
-        primary key,
-    text       text               not null,
-    created_at date default now() not null,
-    movie_id   integer
-        references movie
-            on delete cascade,
-    person_id  integer
-        references person
-            on delete cascade,
-    unique (movie_id, person_id)
-);
-
-comment on table movie_review_m2m is 'Рецензии на фильм';
 
 create table person_position
 (
@@ -275,28 +261,33 @@ create table person_poster_m2m
         primary key
 );
 
-
 create table tag
 (
     title varchar
         primary key
 );
 
-create table tag_movie_m2m
+create table tag_m2m
 (
-    movie_id  integer
-        constraint tag_movie_m2m_movie_id_fk
+    movie_id       integer
+        constraint tag_m2m_movie_id_fk
             references movie
             on update cascade on delete cascade,
-    tag_title integer
-        constraint tag_movie_m2m_tag_title_fk
+    tag_title      integer
+        constraint tag_m2m_tag_title_fk
             references tag
             on update cascade on delete cascade,
-    constraint tag_movie_m2m_pk
-        unique (movie_id, tag_title)
+    publication_id integer
+        constraint tag_m2m_publications_id_fk
+            references publications,
+    constraint tag_m2m_pk
+        unique (movie_id, tag_title),
+    constraint publication_movie_check
+        check (not (movie_id is null and publication_id is null) or
+               not (movie_id is not null and publication_id is not null))
 );
 
-comment on table tag_movie_m2m is 'Теги для фильмов';
+comment on table tag_m2m is 'Теги для фильмов и публикаций';
 
 create table "user"
 (
@@ -322,45 +313,6 @@ comment on table "user" is 'Пользователи кинотеки';
 
 comment on column "user".username is 'Имя пользователя';
 
-create table feedback
-(
-    id         serial
-        constraint feedback_pk
-            primary key,
-    text       text               not null,
-    movie_id   integer
-        constraint feedback_movie_id_fk
-            references movie
-            on delete cascade,
-    "user"     varchar
-        constraint feedback_user_username_fk
-            references "user"
-            on update cascade on delete cascade,
-    created_at date default now() not null
-);
-
-comment on table feedback is 'Отзывы';
-
-create table movie_rating_m2m
-(
-    id       bigserial
-        constraint movie_rating_m2m_pk
-            primary key,
-    rating   smallint not null,
-    movie_id integer
-        constraint movie_rating_m2m_movie_id_fk
-            references movie
-            on delete cascade,
-    user_id  integer
-        constraint movie_rating_m2m_user_id_fk
-            references "user"
-            on delete cascade,
-    constraint movie_rating_check_range_1_5
-        check (rating > 0 and rating < 6)
-);
-
-comment on table movie_rating_m2m is 'Пользовательский рэйтинг фильмов';
-
 create table cinema_online
 (
     id    serial
@@ -372,7 +324,7 @@ create table cinema_online
 
 comment on table cinema_online is 'Онлайн кинотеатры';
 
-create table cinema_online_movie_presence_m2m
+create table cinema_online_movie_presence
 (
     id          bigserial
         constraint movie_cinema_presence_m2m_pk
@@ -393,11 +345,11 @@ create table cinema_online_movie_presence_m2m
         check (rating > 0 and rating < 6)
 );
 
-comment on table cinema_online_movie_presence_m2m is 'Наличие фильмов в онлайн-кинотеатрах';
+comment on table cinema_online_movie_presence is 'Наличие фильмов в онлайн-кинотеатрах';
 
-comment on column cinema_online_movie_presence_m2m.view_count is 'Количество просмотров';
+comment on column cinema_online_movie_presence.view_count is 'Количество просмотров';
 
-create table user_movie_orders_m2m
+create table user_movie_orders
 (
     id               bigserial
         constraint user_movie_orders_m2m_pk
@@ -416,31 +368,104 @@ create table user_movie_orders_m2m
             references cinema_online
             on delete restrict,
     price            numeric            not null,
-    date             date default now() not null
+    date             date default now() not null,
+    constraint user_movie_orders_m2m_pk2
+        unique (user_id, movie_id, online_cinema_id)
 );
 
-comment on table user_movie_orders_m2m is 'Заказы просмотров фильмов пользователями фильмов в онлайн-кинотеатрах';
+comment on table user_movie_orders is 'Заказы просмотров фильмов пользователями фильмов в онлайн-кинотеатрах';
 
-comment on column user_movie_orders_m2m.cinema_order_id is 'Идентификационный номер заказа в кинотеатре';
+comment on column user_movie_orders.cinema_order_id is 'Идентификационный номер заказа в кинотеатре';
 
-create table user_movie_comments_m2m
+create table publications
 (
     id          bigserial
-        constraint user_movie_comments_m2m_pk
+        constraint publications_pk
             primary key,
-    user_id     integer
-        constraint user_movie_comments_m2m_user_username_fk
-            references "user"
-            on delete cascade,
-    movie_id    integer
-        constraint user_movie_comments_m2m_movie_id_fk
-            references movie
-            on delete cascade,
-    comment     varchar(1024)      not null,
+    title       varchar(256)       not null,
+    text        text               not null,
+    author      integer
+        constraint publications_user_username_fk
+            references "user",
+    category    integer
+        constraint publications_publications_category_id_fk
+            references publications_category (id),
     create_date date default now() not null,
-    parent_id   integer
-        constraint user_movie_comments_m2m_user_movie_comments_m2m_id_fk
-            references user_movie_comments_m2m
+    change_date date               not null
 );
 
-comment on table user_movie_comments_m2m is 'Комментарии пользователей к фильму';
+comment on table publications is 'Публикации по категориям';
+
+create table publications_category
+(
+    id    serial
+        constraint publications_category_pk
+            primary key,
+    title varchar(24) not null
+);
+
+comment on table publications_category is 'Категории публикаций (новости, обзор, анонс, ...)';
+
+create table users_rating
+(
+    id             bigserial
+        constraint users_rating_pk
+            primary key,
+    rating         smallint  not null,
+    movie_id       integer
+        constraint users_rating_movie_id_fk
+            references movie
+            on delete cascade,
+    user_id        integer   not null
+        constraint user_rating_user_id_fk
+            references "user"
+            on delete cascade,
+    publication_id integer
+        constraint users_rating_publications_id_fk
+            references publications,
+    date           timestamp not null,
+    constraint users_rating_pk2
+        unique (movie_id, publication_id, user_id),
+    constraint user_comments_rating_check
+        check ((movie_id is null and publication_id is not null) or
+               (movie_id is not null and publication_id is null) or
+               not (movie_id is null and publication_id is null) or
+               not (movie_id is not null and publication_id is not null)),
+    constraint user_rating_check_range_1_5
+        check (rating > 0 and rating < 6)
+);
+
+comment on table users_rating is 'Пользовательский рэйтинг';
+
+create table comments
+(
+    id             bigserial          not null
+        constraint comments_pk
+            primary key,
+    user_id        integer
+        constraint comments_user_username_fk
+            references "user"
+            on delete cascade,
+    comment        text               not null,
+    create_date    date default now() not null,
+    parent_id      integer
+        constraint comments_comments_id_fk
+            references comments,
+    movie_id       integer
+        constraint comments_movie_id_fk
+            references movie
+            on delete cascade
+        constraint comments_movie_id_fk2
+            references movie,
+    publication_id integer
+        constraint comments_publications_id_fk
+            references publications,
+    change_date    date,
+    constraint coments_on_movie_and_publication_check
+        check ((movie_id is null and publication_id is not null) or
+               (movie_id is not null and publication_id is null) or
+               not (movie_id is null and publication_id is null) or
+               not (movie_id is not null and publication_id is not null))
+);
+
+comment on table comments is 'Комментарии пользователей';
