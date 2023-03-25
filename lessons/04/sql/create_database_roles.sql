@@ -4,10 +4,11 @@ CREATE ROLE ktm;
 CREATE ROLE ktr;
 
 -- Владелец БД администратор
-CREATE DATABASE kinoteka OWNER dba;  -- database own by admin
+--CREATE DATABASE kinoteka OWNER dba;  -- database own by admin
 
 -- connect to
-\c kinoteka
+--CONNECT TO kinoteka;
+--\c kinoteka
 
 -- владелей схемы и табличного пространства администратор
 CREATE SCHEMA kinoteka AUTHORIZATION dba;

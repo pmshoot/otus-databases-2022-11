@@ -3,377 +3,378 @@
 BEGIN;
 
 ---
-create table country
+CREATE TABLE country
 (
-    id   smallserial primary key,
-    code char(2)       not null unique,
-    title varchar(128) not null,
-    constraint country_code_title_unique unique (code, title)
+    id    SMALLSERIAL PRIMARY KEY,
+    code  CHAR(2)      NOT NULL UNIQUE,
+    title VARCHAR(128) NOT NULL,
+    CONSTRAINT country_code_title_unique UNIQUE (code, title)
 );
-comment on table country is 'Каталог стран';
-comment on column country.code is 'Код страны';
-comment on column country.title is 'Наименование';
+COMMENT ON TABLE country IS 'Каталог стран';
+COMMENT ON COLUMN country.code IS 'Код страны';
+COMMENT ON COLUMN country.title IS 'Наименование';
 
 ---
-create table city
+CREATE TABLE city
 (
-    id         serial primary key,
-    title      varchar(128) not null,
-    country_id smallint     not null references country (id) on delete restrict,
-    constraint city_country_unique unique (title, country_id)
+    id         SERIAL PRIMARY KEY,
+    title      VARCHAR(128) NOT NULL,
+    country_id SMALLINT     NOT NULL REFERENCES country (id) ON DELETE RESTRICT,
+    CONSTRAINT city_country_unique UNIQUE (title, country_id)
 );
-comment on table city is 'Города';
+COMMENT ON TABLE city IS 'Города';
 
 ---
-create table genre
+CREATE TABLE genre
 (
-    id    smallserial primary key,
-    title char(128) not null unique
+    id    SMALLSERIAL PRIMARY KEY,
+    title CHAR(128) NOT NULL UNIQUE
 );
-comment on table genre is 'Каталог жанров кинолент';
+COMMENT ON TABLE genre IS 'Каталог жанров кинолент';
 
 ---
-create table rars
+CREATE TABLE rars
 (
-    id smallserial primary key,
-    title   varchar(5)   not null unique,
-    min_age smallint     not null,
-    description text     not null,
-    country     smallint not null references country on delete restrict,
-    constraint rars_age_range_check check ( min_age > 0 and min_age < 19)
+    id          SMALLSERIAL PRIMARY KEY,
+    title       VARCHAR(5) NOT NULL UNIQUE,
+    min_age     SMALLINT   NOT NULL,
+    description TEXT       NOT NULL,
+    country     SMALLINT   NOT NULL REFERENCES country ON DELETE RESTRICT,
+    CONSTRAINT rars_age_range_check CHECK ( min_age > 0 AND min_age < 19)
 );
-comment on table rars is 'Возрастная классификация информационной продукции';
+COMMENT ON TABLE rars IS 'Возрастная классификация информационной продукции';
 
 ---
-create table movie
+CREATE TABLE movie
 (
-    id             serial primary key,
-    title          varchar(128) not null,
-    title_original varchar(128) not null,
-    country        smallint     not null references country,
-    "year"         smallint     not null,
-    release_date   date,
-    budget         numeric,
-    boxoffice      numeric,
-    rating         smallint,
-    duration       integer      not null,
-    rars           varchar(5) references rars (title) on update cascade on delete restrict,
-    constraint movie_rating_range_check check (rating > 0 and rating < 6),
-    constraint movie_duration_pos_check check ( NULL or duration >= 0 ),
-    constraint movie_budget_pos_check check ( NULL or budget >= 0 ),
-    constraint movie_release_date_check check ( NULL or not (extract( year from release_date) > "year" or extract( year from release_date) < "year"))
+    id             SERIAL PRIMARY KEY,
+    title          VARCHAR(128) NOT NULL,
+    title_original VARCHAR(128),
+    country        SMALLINT     NOT NULL REFERENCES country,
+    "year"         SMALLINT     NOT NULL,
+    release_date   DATE,
+    budget         NUMERIC,
+    boxoffice      NUMERIC,
+    rating         SMALLINT,
+    duration       INTEGER      NOT NULL,
+    rars           VARCHAR(5) REFERENCES rars (title) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT movie_rating_range_check CHECK (rating > 0 AND rating < 6),
+    CONSTRAINT movie_duration_pos_check CHECK ( NULL OR duration >= 0 ),
+    CONSTRAINT movie_budget_pos_check CHECK ( NULL OR budget >= 0 ),
+    CONSTRAINT movie_release_date_check CHECK ( NULL OR NOT (EXTRACT(YEAR FROM release_date) > "year" OR
+                                                             EXTRACT(YEAR FROM release_date) < "year"))
 );
-comment on table movie is 'Каталог кинолент и сериалов';
+COMMENT ON TABLE movie IS 'Каталог кинолент и сериалов';
 
 ---
-create table movie_genre_m2m
+CREATE TABLE movie_genre_m2m
 (
-    id       serial primary key,
-    genre_id smallint   not null references genre on delete cascade,
-    movie_id integer    not null references movie on delete cascade,
-    constraint movie_genre_unique unique (genre_id, movie_id)
+    id       SERIAL PRIMARY KEY,
+    genre_id SMALLINT NOT NULL REFERENCES genre ON DELETE CASCADE,
+    movie_id INTEGER  NOT NULL REFERENCES movie ON DELETE CASCADE,
+    CONSTRAINT movie_genre_unique UNIQUE (genre_id, movie_id)
 );
-comment on table movie_genre_m2m is 'Отношения кинолент к жанрам';
+COMMENT ON TABLE movie_genre_m2m IS 'Отношения кинолент к жанрам';
 
 ---
-create table person
+CREATE TABLE person
 (
-    id         serial primary key,
-    last_name  varchar(128) not null,
-    first_name varchar(128) not null,
-    mid_name   varchar(128),
-    city_id    integer references city on delete restrict,
-    birthday   date,
-    education  varchar(128),
-    bio        text
+    id         SERIAL PRIMARY KEY,
+    last_name  VARCHAR(128) NOT NULL,
+    first_name VARCHAR(128) NOT NULL,
+    mid_name   VARCHAR(128),
+    city_id    INTEGER REFERENCES city ON DELETE RESTRICT,
+    birthday   DATE,
+    education  VARCHAR(128),
+    bio        TEXT
 );
-comment on table person is 'Актеры, режиссеры,...';
+COMMENT ON TABLE person IS 'Актеры, режиссеры,...';
 
 ---
-create table person_position
+CREATE TABLE person_position
 (
-    id smallserial primary key,
-    title varchar(128) not null unique
+    id    SMALLSERIAL PRIMARY KEY,
+    title VARCHAR(128) NOT NULL UNIQUE
 );
-comment on table person_position is 'Должности и выполняемые функции участников съемок';
+COMMENT ON TABLE person_position IS 'Должности и выполняемые функции участников съемок';
 
-create table movie_staff_m2m
+CREATE TABLE movie_staff_m2m
 (
-    id           serial primary key,
-    "character"  varchar(128),           -- исполняемая роль
-    is_lead_role boolean  default false, -- главная роль
-    position_id  smallint not null references person_position on delete restrict,
-    person_id    integer  not null references person on delete restrict,
-    movie_id     integer  not null references movie on delete cascade
+    id           SERIAL PRIMARY KEY,
+    "character"  VARCHAR(128),          -- исполняемая роль
+    is_lead_role BOOLEAN DEFAULT FALSE, -- главная роль
+    position_id  SMALLINT NOT NULL REFERENCES person_position ON DELETE RESTRICT,
+    person_id    INTEGER  NOT NULL REFERENCES person ON DELETE RESTRICT,
+    movie_id     INTEGER  NOT NULL REFERENCES movie ON DELETE CASCADE
 );
-comment on table movie_staff_m2m is 'Участники съемок';
-
----
-create table place
-(
-    id       smallserial primary key,
-    title    varchar(128) not null,
-    city_id  integer      not null references city on delete restrict,
-    postcode varchar(12)  not null,
-    street   varchar(128) not null,
-    build    varchar(5)   not null,
-    office   varchar(5),
-    constraint place_unique_constraint unique (city_id, postcode, street, build, office)
-);
-comment on table place is 'Места проведения награждений';
+COMMENT ON TABLE movie_staff_m2m IS 'Участники съемок';
 
 ---
-create table organization
+CREATE TABLE place
 (
-    id            smallserial primary key,
-    title         varchar(128) not null,
-    title_short   varchar(56)  not null,
-    place_id      integer      not null references place on delete restrict,
-    ceo           integer               references person on delete set null,
-    found_at      date,
-    close_at      date
+    id       SMALLSERIAL PRIMARY KEY,
+    title    VARCHAR(128) NOT NULL,
+    city_id  INTEGER      NOT NULL REFERENCES city ON DELETE RESTRICT,
+    postcode VARCHAR(12)  NOT NULL,
+    street   VARCHAR(128) NOT NULL,
+    build    VARCHAR(5)   NOT NULL,
+    office   VARCHAR(5),
+    CONSTRAINT place_unique_constraint UNIQUE (city_id, postcode, street, build, office)
 );
-comment on table organization is 'Каталог организаций юридических лиц';
-comment on column organization.title is 'Наименование';
-comment on column organization.title_short is 'Краткое наименование';
-comment on column organization.place_id is 'Штаб-квартира';
-comment on column organization.ceo is 'Шеф';
-comment on column organization.found_at is 'Дата основания';
+COMMENT ON TABLE place IS 'Места проведения награждений';
 
 ---
-create table film_award
+CREATE TABLE organization
 (
-    id          smallserial  primary key,
-    founder     smallint     not null references organization on delete restrict,
-    title       varchar(128) not null,
-    found_at    date         not null,
-    ended_at    date,
-    description text
+    id          SMALLSERIAL PRIMARY KEY,
+    title       VARCHAR(128) NOT NULL,
+    title_short VARCHAR(56)  NOT NULL,
+    place_id    INTEGER      NOT NULL REFERENCES place ON DELETE RESTRICT,
+    ceo         INTEGER      REFERENCES person ON DELETE SET NULL,
+    found_at    DATE,
+    close_at    DATE
 );
-comment on table film_award is 'Существующие кино-премии мира';
+COMMENT ON TABLE organization IS 'Каталог организаций юридических лиц';
+COMMENT ON COLUMN organization.title IS 'Наименование';
+COMMENT ON COLUMN organization.title_short IS 'Краткое наименование';
+COMMENT ON COLUMN organization.place_id IS 'Штаб-квартира';
+COMMENT ON COLUMN organization.ceo IS 'Шеф';
+COMMENT ON COLUMN organization.found_at IS 'Дата основания';
 
 ---
-create table award_category
+CREATE TABLE film_award
 (
-    id            smallserial primary key,
-    film_award_id smallint     not null references film_award on delete restrict,
-    title         varchar(128) not null,
-    tier          smallint     not null, -- класс награды
-    constraint award_category_tier_pos_check check ( tier > 0 )
+    id          SMALLSERIAL PRIMARY KEY,
+    founder     SMALLINT     NOT NULL REFERENCES organization ON DELETE RESTRICT,
+    title       VARCHAR(128) NOT NULL,
+    found_at    DATE         NOT NULL,
+    ended_at    DATE,
+    description TEXT
 );
-comment on table award_category is 'Категория награды, относящаяся к кино-премии';
+COMMENT ON TABLE film_award IS 'Существующие кино-премии мира';
 
 ---
-create table award_ceremony
+CREATE TABLE award_category
 (
-    id                integer primary key,
-    title             varchar(128) not null,
-    place_id          smallint     not null references place,
-    film_award_id     smallint     not null references film_award,
-    start_at          date         not null,
-    end_at            date
+    id            SMALLSERIAL PRIMARY KEY,
+    film_award_id SMALLINT     NOT NULL REFERENCES film_award ON DELETE RESTRICT,
+    title         VARCHAR(128) NOT NULL,
+    tier          SMALLINT     NOT NULL, -- класс награды
+    CONSTRAINT award_category_tier_pos_check CHECK ( tier > 0 )
 );
-comment on table award_ceremony is 'Проведенные ежегодные церемонии награждения кино-премий';
+COMMENT ON TABLE award_category IS 'Категория награды, относящаяся к кино-премии';
 
 ---
-create table award_nomination
+CREATE TABLE award_ceremony
 (
-    id    smallserial primary key,
-    title varchar(128) not null unique
+    id            INTEGER PRIMARY KEY,
+    title         VARCHAR(128) NOT NULL,
+    place_id      SMALLINT     NOT NULL REFERENCES place,
+    film_award_id SMALLINT     NOT NULL REFERENCES film_award,
+    start_at      DATE         NOT NULL,
+    end_at        DATE
 );
-comment on table award_nomination is 'Наименования существующих номинаций кино-премий';
+COMMENT ON TABLE award_ceremony IS 'Проведенные ежегодные церемонии награждения кино-премий';
 
 ---
-create table award
+CREATE TABLE award_nomination
 (
-    id             serial primary key,
-    award_category smallint not null references award_category on delete restrict,
-    ceremony_id    integer  not null references award_ceremony on delete restrict,
-    movie_id       integer  not null references movie on delete restrict,
-    person_id      integer           references person on delete restrict,
-    nomination_id  smallint not null references award_nomination on delete restrict,
-    "comment"      text,
-    constraint award_unique_constraint unique (ceremony_id, movie_id, nomination_id)
+    id    SMALLSERIAL PRIMARY KEY,
+    title VARCHAR(128) NOT NULL UNIQUE
 );
-comment on table award is 'Врученные награды кино-премий';
+COMMENT ON TABLE award_nomination IS 'Наименования существующих номинаций кино-премий';
 
 ---
-create table poster_pictures
+CREATE TABLE award
 (
-    id        serial primary key,
-    file_path varchar(128)  not null,
-    width     integer       not null,
-    height    integer       not null
+    id             SERIAL PRIMARY KEY,
+    award_category SMALLINT NOT NULL REFERENCES award_category ON DELETE RESTRICT,
+    ceremony_id    INTEGER  NOT NULL REFERENCES award_ceremony ON DELETE RESTRICT,
+    movie_id       INTEGER  NOT NULL REFERENCES movie ON DELETE RESTRICT,
+    person_id      INTEGER REFERENCES person ON DELETE RESTRICT,
+    nomination_id  SMALLINT NOT NULL REFERENCES award_nomination ON DELETE RESTRICT,
+    "comment"      TEXT,
+    CONSTRAINT award_unique_constraint UNIQUE (ceremony_id, movie_id, nomination_id)
 );
-comment on table poster_pictures is 'Файлы изображений постеров';
+COMMENT ON TABLE award IS 'Врученные награды кино-премий';
 
 ---
-create table movie_poster_m2m
+CREATE TABLE poster_pictures
 (
-    id          serial primary key,
-    movie_id    integer not null references movie on delete cascade,
-    poster_id   integer not null references poster_pictures on delete cascade
+    id        SERIAL PRIMARY KEY,
+    file_path VARCHAR(128) NOT NULL,
+    width     INTEGER      NOT NULL,
+    height    INTEGER      NOT NULL
 );
-comment on table movie_poster_m2m is 'Постеры к фильмам';
+COMMENT ON TABLE poster_pictures IS 'Файлы изображений постеров';
 
 ---
-create table person_poster_m2m
+CREATE TABLE movie_poster_m2m
 (
-    id        serial primary key,
-    person_id integer not null references person on delete cascade,
-    poster_id integer not null references poster_pictures on delete cascade
+    id        SERIAL PRIMARY KEY,
+    movie_id  INTEGER NOT NULL REFERENCES movie ON DELETE CASCADE,
+    poster_id INTEGER NOT NULL REFERENCES poster_pictures ON DELETE CASCADE
 );
-comment on table person_poster_m2m is 'Постеры с актерами';
-
-create table tag
-(
-    id      serial primary key,
-    title   varchar(56) not null unique
-);
-comment on table tag is 'Теги';
+COMMENT ON TABLE movie_poster_m2m IS 'Постеры к фильмам';
 
 ---
-create table "user"
+CREATE TABLE person_poster_m2m
 (
-    id       serial primary key,
-    username   varchar(64)        not null unique,
-    email      varchar(128)       not null unique,
-    "password"   varchar(128)     not null, -- password hash
-    fio        varchar(128),
-    bio        text,
-    created_at date default now() not null,
-    deleted_at date,
-    birthday   date               not null,
-    last_logon date,
-    constraint user_birthday_check check (birthday < now()),
-    constraint user_check_created_less_deleted check ("user".created_at <= "user".deleted_at)
+    id        SERIAL PRIMARY KEY,
+    person_id INTEGER NOT NULL REFERENCES person ON DELETE CASCADE,
+    poster_id INTEGER NOT NULL REFERENCES poster_pictures ON DELETE CASCADE
 );
-comment on table "user" is 'Пользователи кинотеки';
+COMMENT ON TABLE person_poster_m2m IS 'Постеры с актерами';
+
+CREATE TABLE tag
+(
+    id    SERIAL PRIMARY KEY,
+    title VARCHAR(56) NOT NULL UNIQUE
+);
+COMMENT ON TABLE tag IS 'Теги';
 
 ---
-create table cinema_online
+CREATE TABLE "user"
 (
-    id    serial primary key,
-    title varchar(128) not null unique,
-    url   text         not null unique
+    id         SERIAL PRIMARY KEY,
+    username   VARCHAR(64)        NOT NULL UNIQUE,
+    email      VARCHAR(128)       NOT NULL UNIQUE,
+    "password" VARCHAR(128)       NOT NULL, -- password hash
+    fio        VARCHAR(256)       NOT NULL,
+    bio        TEXT,
+    created_at DATE DEFAULT NOW() NOT NULL,
+    deleted_at DATE,
+    birthday   DATE               NOT NULL,
+    last_logon DATE,
+    CONSTRAINT user_birthday_check CHECK (birthday < NOW()),
+    CONSTRAINT user_check_created_less_deleted CHECK ("user".created_at <= "user".deleted_at)
 );
-comment on table cinema_online is 'Онлайн кинотеатры';
+COMMENT ON TABLE "user" IS 'Пользователи кинотеки';
 
 ---
-create table cinema_online_movie_presence
+CREATE TABLE cinema_online
 (
-    id          serial primary key,
-    movie_id    integer references movie on delete cascade,
-    cinema_id   integer references cinema_online on delete cascade,
-    price       numeric not null,
-    rating      integer not null,
-    discount    smallint default 0 check ( discount >=0 or discount <= 100 ), -- скидка для студентов
-    view_count  integer,
-    last_update date,
-    constraint movie_cinema_rating_check check (rating > 0 and rating < 6),
-    constraint cinema_online_movie_presence_unique unique (movie_id, cinema_id)
+    id    SERIAL PRIMARY KEY,
+    title VARCHAR(128) NOT NULL UNIQUE,
+    url   TEXT         NOT NULL UNIQUE
 );
-comment on table cinema_online_movie_presence is 'Наличие фильмов в онлайн-кинотеатрах';
+COMMENT ON TABLE cinema_online IS 'Онлайн кинотеатры';
 
 ---
-create table user_movie_orders
+CREATE TABLE cinema_online_movie_presence
 (
-    id               serial primary key,
-    cinema_order_id  uuid               not null,
-    movie_id         integer references movie on delete restrict,
-    user_id          integer references "user" on delete restrict,
-    online_cinema_id integer references cinema_online on delete restrict,
-    price            numeric            not null check ( price >= 0 ),
-    "date"           date default now() not null,
-    constraint user_movie_orders_m2m_pk2 unique (user_id, movie_id, online_cinema_id)
+    id          SERIAL PRIMARY KEY,
+    movie_id    INTEGER REFERENCES movie ON DELETE CASCADE,
+    cinema_id   INTEGER REFERENCES cinema_online ON DELETE CASCADE,
+    price       NUMERIC NOT NULL,
+    rating      INTEGER NOT NULL,
+    discount    SMALLINT DEFAULT 0 CHECK ( discount >= 0 OR discount <= 100 ), -- скидка для студентов
+    view_count  INTEGER,
+    last_update DATE,
+    CONSTRAINT movie_cinema_rating_check CHECK (rating > 0 AND rating < 6),
+    CONSTRAINT cinema_online_movie_presence_unique UNIQUE (movie_id, cinema_id)
 );
-comment on table user_movie_orders is 'Заказы просмотров фильмов пользователями фильмов в онлайн-кинотеатрах';
-comment on column user_movie_orders.cinema_order_id is 'Идентификационный номер заказа в кинотеатре';
+COMMENT ON TABLE cinema_online_movie_presence IS 'Наличие фильмов в онлайн-кинотеатрах';
 
 ---
-create table publications_category
+CREATE TABLE user_movie_orders
 (
-    id    serial primary key,
-    title varchar(24) not null unique
+    id               SERIAL PRIMARY KEY,
+    cinema_order_id  uuid               NOT NULL,
+    movie_id         INTEGER REFERENCES movie ON DELETE RESTRICT,
+    user_id          INTEGER REFERENCES "user" ON DELETE RESTRICT,
+    online_cinema_id INTEGER REFERENCES cinema_online ON DELETE RESTRICT,
+    price            NUMERIC            NOT NULL CHECK ( price >= 0 ),
+    "date"           DATE DEFAULT NOW() NOT NULL,
+    CONSTRAINT user_movie_orders_m2m_pk2 UNIQUE (user_id, movie_id, online_cinema_id)
 );
-comment on table publications_category is 'Категории публикаций (новости, обзор, анонс, ...)';
+COMMENT ON TABLE user_movie_orders IS 'Заказы просмотров фильмов пользователями фильмов в онлайн-кинотеатрах';
+COMMENT ON COLUMN user_movie_orders.cinema_order_id IS 'Идентификационный номер заказа в кинотеатре';
+
+---
+CREATE TABLE publications_category
+(
+    id    SERIAL PRIMARY KEY,
+    title VARCHAR(24) NOT NULL UNIQUE
+);
+COMMENT ON TABLE publications_category IS 'Категории публикаций (новости, обзор, анонс, ...)';
 
 --- Публикации, обзоры, критика пользователей (студентов и преподавателей)
-create table publications
+CREATE TABLE publications
 (
-    id          bigserial primary key,
-    title       varchar(256)       not null,
-    "text"      text               not null,
-    author      integer references "user",
-    "category"  integer references publications_category on delete restrict,
-    create_date date default now() not null,
-    change_date date               not null
+    id          BIGSERIAL PRIMARY KEY,
+    title       VARCHAR(256)                                                NOT NULL,
+    "text"      TEXT                                                        NOT NULL,
+    author      INTEGER REFERENCES "user" ON DELETE RESTRICT                NOT NULL,
+    "category"  INTEGER REFERENCES publications_category ON DELETE RESTRICT NOT NULL,
+    create_date DATE DEFAULT NOW()                                          NOT NULL,
+    change_date DATE                                                        NOT NULL
 )
-    tablespace fast_ts; -- fast table spase
-comment on table publications is 'Публикации о кинематографе по категориям';
+    TABLESPACE fast_ts; -- fast table spase
+COMMENT ON TABLE publications IS 'Публикации о кинематографе по категориям';
 
 ---
-create table tag_m2m
+CREATE TABLE tag_m2m
 (
-    tag_id         integer references tag on delete cascade,
-    movie_id       integer references movie on delete cascade,
-    publication_id integer references publications on delete cascade,
-    constraint tag_movie_unique unique (movie_id, tag_id),
-    constraint publication_movie_check
-        check (not (movie_id is null and publication_id is null) or
-               not (movie_id is not null and publication_id is not null))
+    tag_id         INTEGER REFERENCES tag ON DELETE CASCADE,
+    movie_id       INTEGER REFERENCES movie ON DELETE CASCADE,
+    publication_id INTEGER REFERENCES publications ON DELETE CASCADE,
+    CONSTRAINT tag_movie_unique UNIQUE (movie_id, tag_id),
+    CONSTRAINT publication_movie_check
+        CHECK (NOT (movie_id IS NULL AND publication_id IS NULL) OR
+               NOT (movie_id IS NOT NULL AND publication_id IS NOT NULL))
 )
-    tablespace fast_ts; -- fast table spase
-comment on table tag_m2m is 'Теги фильмов и публикаций';
+    TABLESPACE fast_ts; -- fast table spase
+COMMENT ON TABLE tag_m2m IS 'Теги фильмов и публикаций';
 
 ---
-create table users_rating
+CREATE TABLE users_rating
 (
-    id             serial primary key,
-    rating         smallint     not null,
-    user_id        integer      not null    references "user" on delete cascade,
-    movie_id       integer                  references movie on delete cascade,
-    publication_id bigint                   references publications on delete cascade,
-    "date"         timestamp    not null default now(),
-    constraint users_rating_unique_pk2 unique (movie_id, publication_id, user_id),
-    constraint user_rating_check_range_1_5 check (rating > 0 and rating < 6),
-    constraint user_comments_rating_check -- рейтинг только к фильму или публикации
-        check (not (movie_id is null and publication_id is null) or
-               not (movie_id is not null and publication_id is not null))
+    id             SERIAL PRIMARY KEY,
+    rating         SMALLINT  NOT NULL,
+    user_id        INTEGER   NOT NULL REFERENCES "user" ON DELETE CASCADE,
+    movie_id       INTEGER REFERENCES movie ON DELETE CASCADE,
+    publication_id BIGINT REFERENCES publications ON DELETE CASCADE,
+    "date"         TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT users_rating_unique_pk2 UNIQUE (movie_id, publication_id, user_id),
+    CONSTRAINT user_rating_check_range_1_5 CHECK (rating > 0 AND rating < 6),
+    CONSTRAINT user_comments_rating_check -- рейтинг только к фильму или публикации
+        CHECK (NOT (movie_id IS NULL AND publication_id IS NULL) OR
+               NOT (movie_id IS NOT NULL AND publication_id IS NOT NULL))
 )
-    tablespace fast_ts; -- fast table spase
-comment on table users_rating is 'Пользовательский рейтинг';
+    TABLESPACE fast_ts; -- fast table spase
+COMMENT ON TABLE users_rating IS 'Пользовательский рейтинг';
 
 ---
-create table comments
+CREATE TABLE comments
 (
-    id             bigserial primary key,
-    user_id        integer references "user" on delete set null,
-    "comment"        text             not null,
-    parent_id      integer references comments on delete restrict,
-    movie_id       integer references movie on delete cascade,
-    publication_id integer references publications on delete cascade,
-    create_date    date default now() not null,
-    change_date    date,
-    constraint comments_on_movie_and_publication_check -- комментарий только к фильму или публикации
-        check (not (movie_id is null and publication_id is null) or
-               not (movie_id is not null and publication_id is not null))
+    id             BIGSERIAL PRIMARY KEY,
+    user_id        INTEGER            REFERENCES "user" ON DELETE SET NULL,
+    "comment"      TEXT               NOT NULL,
+    parent_id      INTEGER REFERENCES comments ON DELETE RESTRICT,
+    movie_id       INTEGER REFERENCES movie ON DELETE CASCADE,
+    publication_id INTEGER REFERENCES publications ON DELETE CASCADE,
+    create_date    DATE DEFAULT NOW() NOT NULL,
+    change_date    DATE,
+    CONSTRAINT comments_on_movie_and_publication_check -- комментарий только к фильму или публикации
+        CHECK (NOT (movie_id IS NULL AND publication_id IS NULL) OR
+               NOT (movie_id IS NOT NULL AND publication_id IS NOT NULL))
 )
-    tablespace fast_ts;
-comment on table comments is 'Комментарии пользователей';
+    TABLESPACE fast_ts;
+COMMENT ON TABLE comments IS 'Комментарии пользователей';
 
 -- INDEXES
 
 -- одна кинопремия в год
-create unique index award_ceremony_unique_idx on award_ceremony (film_award_id, extract(year from start_at));
-create index movie_title_idx on movie (title);
-create index movie_title_original_idx on movie (title_original);
-create index movie_rating_idx on movie (rating);
-create index user_fio_idx on "user" (fio);
-create index person_name_idx on person (last_name, first_name);
-create index award_ceremony_title_idx on award_ceremony (title);
-create index publications_title_idx on publications (title) tablespace fast_ts;
-create index publications_text_idx on publications (text) tablespace fast_ts; -- todo: add FTS
-create index publications_create_date_idx on publications (create_date) tablespace fast_ts;
+CREATE UNIQUE INDEX award_ceremony_unique_idx ON award_ceremony (film_award_id, EXTRACT(YEAR FROM start_at));
+CREATE INDEX movie_title_idx ON movie (title);
+CREATE INDEX movie_title_original_idx ON movie (title_original);
+CREATE INDEX movie_rating_idx ON movie (rating);
+CREATE INDEX user_fio_idx ON "user" (fio);
+CREATE INDEX person_name_idx ON person (last_name, first_name);
+CREATE INDEX award_ceremony_title_idx ON award_ceremony (title);
+CREATE INDEX publications_title_idx ON publications (title) TABLESPACE fast_ts;
+CREATE INDEX publications_text_idx ON publications ("text") TABLESPACE fast_ts; -- todo: add FTS
+CREATE INDEX publications_create_date_idx ON publications (create_date) TABLESPACE fast_ts;
 
 COMMIT;
