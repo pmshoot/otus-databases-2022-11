@@ -103,7 +103,7 @@ mysql> select * from test;
 
 ### `sysbench`
 
-**CPU**
+**OLTP**
 
 ```shell
 ➜  sysbench git:(master) ✗ sysbench /usr/share/sysbench/oltp_read_write.lua --mysql-host=127.0.0.1 --mysql-port=3309 --mysql-user=root --mysql-password='12345' --mysql-db=student --db-driver=mysql --tables=3 --table-size=10000000 --report-interval=20 --threads=64 --time=300 run
